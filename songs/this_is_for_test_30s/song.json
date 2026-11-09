@@ -1,1 +1,21 @@
-{"id": "this_is_for_test_30s", "title": "this_is_for_twice test clip from 60s", "artist": "TWICE", "dancers": 9, "status": "new"}
+{
+  "id": "this_is_for_test_30s",
+  "title": "this_is_for_twice test clip from 60s",
+  "artist": "TWICE",
+  "dancers": 9,
+  "status": "ready",
+  "progress": 1,
+  "frames": 900,
+  "tracked": [
+    900,
+    738,
+    900,
+    744,
+    816,
+    900,
+    900,
+    820,
+    853
+  ],
+  "duration": 29.981
+}

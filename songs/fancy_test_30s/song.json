@@ -1,1 +1,21 @@
-{"id": "fancy_test_30s", "title": "fancy_twice test clip from 30s", "artist": "TWICE", "dancers": 9, "status": "new"}
+{
+  "id": "fancy_test_30s",
+  "title": "fancy_twice test clip from 30s",
+  "artist": "TWICE",
+  "dancers": 9,
+  "status": "ready",
+  "progress": 1,
+  "frames": 900,
+  "tracked": [
+    900,
+    588,
+    760,
+    685,
+    708,
+    898,
+    900,
+    691,
+    846
+  ],
+  "duration": 29.967
+}

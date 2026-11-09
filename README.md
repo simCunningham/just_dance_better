@@ -59,12 +59,12 @@ cd backend
   "song_id": "what_is_love_twice",
   "version": 2,
   "fps": 30, "width": 2520, "height": 1080,
-  "mirrored": true, "min_visibility": 0.5, "landmarks": 33, "dancers": 9,
+  "min_visibility": 0.5, "landmarks": 33, "dancers": 9,
   "frames": [{"t": 0.033, "d": [[[x, y, visibility], ...], null, ...]}]
 }
 ```
 
-Each frame's `d` has one entry per dancer, always in the same order: 33 MediaPipe Pose points normalised to the video's width and height, smoothed and mirrored left to right so the player copies the screen like a mirror, or `null` when that dancer is hidden. Points under `min_visibility` are low confidence.
+Each frame's `d` has one entry per dancer, always in the same order: 33 MediaPipe Pose points normalised to the video's width and height, smoothed, in the video's own orientation (source videos are mirrored dance practice uploads, so the player copies the screen like a mirror), or `null` when that dancer is hidden. Points under `min_visibility` are low confidence.
 
 ## Measuring tracking accuracy
 

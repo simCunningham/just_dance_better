@@ -7,7 +7,6 @@ import numpy as np
 
 from .tracking import Scanner, identities
 
-MIRROR = [0, 4, 5, 6, 1, 2, 3, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15, 18, 17, 20, 19, 22, 21, 24, 23, 26, 25, 28, 27, 30, 29, 32, 31]
 MIN_VISIBILITY = 0.5
 MAX_FILL = 1.0
 
@@ -77,12 +76,6 @@ def smooth(poses, alpha):
     return poses
 
 
-def mirror(pose):
-    out = pose[MIRROR].copy()
-    out[:, 0] = 1 - out[:, 0]
-    return out
-
-
 def build(song_id, times, frames, width, height, fps, dancers, alpha):
     tracks = [smooth([f[d] for f in frames], alpha) for d in range(dancers)]
     return {
@@ -91,11 +84,10 @@ def build(song_id, times, frames, width, height, fps, dancers, alpha):
         "fps": fps,
         "width": width,
         "height": height,
-        "mirrored": True,
         "min_visibility": MIN_VISIBILITY,
         "landmarks": 33,
         "dancers": dancers,
-        "frames": [{"t": round(t, 3), "d": [None if tr[i] is None else np.round(mirror(tr[i]), 4).tolist() for tr in tracks]} for i, t in enumerate(times)],
+        "frames": [{"t": round(t, 3), "d": [None if tr[i] is None else np.round(tr[i], 4).tolist() for tr in tracks]} for i, t in enumerate(times)],
     }
 
 

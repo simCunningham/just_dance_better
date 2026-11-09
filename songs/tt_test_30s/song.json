@@ -1,1 +1,21 @@
-{"id": "tt_test_30s", "title": "tt_twice test clip from 30s", "artist": "TWICE", "dancers": 9, "status": "new"}
+{
+  "id": "tt_test_30s",
+  "title": "tt_twice test clip from 30s",
+  "artist": "TWICE",
+  "dancers": 9,
+  "status": "ready",
+  "progress": 1,
+  "frames": 900,
+  "tracked": [
+    800,
+    900,
+    735,
+    868,
+    900,
+    873,
+    789,
+    833,
+    823
+  ],
+  "duration": 29.967
+}
