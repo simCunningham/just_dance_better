@@ -17,6 +17,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http
 class YoutubeRequest(BaseModel):
     url: str
     title: str | None = None
+    dancers: int = 1
 
 
 def existing(song_id, name=None):
@@ -52,13 +53,13 @@ def choreography(song_id: str):
 
 
 @app.post("/songs/upload", status_code=202)
-def upload(background: BackgroundTasks, file: UploadFile = File(...), title: str = Form(...)):
+def upload(background: BackgroundTasks, file: UploadFile = File(...), title: str = Form(...), dancers: int = Form(1)):
     song_id = library.new_song_id(title)
     path = library.song_dir(song_id)
     path.mkdir(parents=True)
     with open(path / "video.mp4", "wb") as out:
         shutil.copyfileobj(file.file, out)
-    song = library.write_song(song_id, title=title, status="queued")
+    song = library.write_song(song_id, title=title, dancers=dancers, status="queued")
     background.add_task(library.process, song_id)
     return song
 
@@ -66,15 +67,15 @@ def upload(background: BackgroundTasks, file: UploadFile = File(...), title: str
 @app.post("/songs/youtube", status_code=202)
 def youtube(request: YoutubeRequest, background: BackgroundTasks):
     song_id = library.new_song_id(request.title or "youtube")
-    song = library.write_song(song_id, title=request.title or song_id, status="queued", source_url=request.url)
+    song = library.write_song(song_id, title=request.title or song_id, dancers=request.dancers, status="queued", source_url=request.url)
     background.add_task(library.ingest_youtube, request.url, song_id)
     return song
 
 
 @app.post("/songs/{song_id}/extract", status_code=202)
-def reextract(song_id: str, background: BackgroundTasks):
+def reextract(song_id: str, background: BackgroundTasks, dancers: int | None = None):
     existing(song_id, "video.mp4")
-    song = library.write_song(song_id, status="queued")
+    song = library.write_song(song_id, status="queued", **({"dancers": dancers} if dancers else {}))
     background.add_task(library.process, song_id)
     return song
 

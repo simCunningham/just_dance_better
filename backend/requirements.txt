@@ -4,5 +4,10 @@ mediapipe==1.2.2
 numpy==2.5.4
 opencv-python-headless==5.0.0.93
 python-multipart==0.0.33
+scikit-learn==1.9.1
+scipy==1.18.1
+torch==2.15.0
+transformers==5.22.2
+ultralytics==8.4.208
 uvicorn==0.54.0
 yt-dlp[default]==2026.10.26
