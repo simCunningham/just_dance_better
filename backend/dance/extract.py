@@ -8,7 +8,7 @@ import numpy as np
 from .tracking import Scanner, identities
 
 MIN_VISIBILITY = 0.5
-MAX_FILL = 1.0
+MAX_FILL = 2.0
 
 
 def detect(video_path, fps, dancers, on_progress=None):
@@ -36,10 +36,12 @@ def detect(video_path, fps, dancers, on_progress=None):
     cap.release()
     owner = identities(times, people, dancers)
     frames = [[None if j is None else people[f][j]["pose"] for j in row] for f, row in enumerate(owner)]
-    return times, fill(times, frames, dancers), width, height
+    frames, estimated = fill(times, frames, dancers)
+    return times, frames, estimated, width, height
 
 
 def fill(times, frames, dancers):
+    estimated = [[] for _ in times]
     for d in range(dancers):
         seen = [f for f in range(len(times)) if frames[f][d] is not None]
         for a, b in zip(seen, seen[1:]):
@@ -47,7 +49,8 @@ def fill(times, frames, dancers):
                 for f in range(a + 1, b):
                     k = (times[f] - times[a]) / (times[b] - times[a])
                     frames[f][d] = frames[a][d] * (1 - k) + frames[b][d] * k
-    return frames
+                    estimated[f].append(d)
+    return frames, estimated
 
 
 def segments(poses):
@@ -76,7 +79,14 @@ def smooth(poses, alpha):
     return poses
 
 
-def build(song_id, times, frames, width, height, fps, dancers, alpha):
+def frame(t, tracks, i, estimated):
+    out = {"t": round(t, 3), "d": [None if tr[i] is None else np.round(tr[i], 4).tolist() for tr in tracks]}
+    if estimated:
+        out["e"] = estimated
+    return out
+
+
+def build(song_id, times, frames, estimated, width, height, fps, dancers, alpha):
     tracks = [smooth([f[d] for f in frames], alpha) for d in range(dancers)]
     return {
         "song_id": song_id,
@@ -87,17 +97,18 @@ def build(song_id, times, frames, width, height, fps, dancers, alpha):
         "min_visibility": MIN_VISIBILITY,
         "landmarks": 33,
         "dancers": dancers,
-        "frames": [{"t": round(t, 3), "d": [None if tr[i] is None else np.round(tr[i], 4).tolist() for tr in tracks]} for i, t in enumerate(times)],
+        "frames": [frame(t, tracks, i, estimated[i]) for i, t in enumerate(times)],
     }
 
 
 def extract(video_path, out_path=None, fps=30, dancers=1, alpha=0.5, on_progress=None):
     video_path = Path(video_path)
     out_path = Path(out_path or video_path.with_name("choreography.json"))
-    times, frames, width, height = detect(video_path, fps, dancers, on_progress)
-    out_path.write_text(json.dumps(build(video_path.parent.name, times, frames, width, height, fps, dancers, alpha), separators=(",", ":")))
+    times, frames, estimated, width, height = detect(video_path, fps, dancers, on_progress)
+    out_path.write_text(json.dumps(build(video_path.parent.name, times, frames, estimated, width, height, fps, dancers, alpha), separators=(",", ":")))
     tracked = [sum(f[d] is not None for f in frames) for d in range(dancers)]
-    return {"frames": len(frames), "tracked": tracked, "duration": round(times[-1], 3) if times else 0}
+    guessed = [sum(d in e for e in estimated) for d in range(dancers)]
+    return {"frames": len(frames), "tracked": tracked, "estimated": guessed, "duration": round(times[-1], 3) if times else 0}
 
 
 def main():

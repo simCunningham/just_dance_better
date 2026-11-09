@@ -55,13 +55,16 @@ function draw() {
     const pts = p;
     const xy = i => [pts[i][0] * w, pts[i][1] * h];
     const color = COLORS[d % COLORS.length];
+    const guess = (frame.e || []).includes(d);
     ctx.lineWidth = 3;
+    ctx.setLineDash(guess ? [6, 6] : []);
     ctx.strokeStyle = color;
     for (const [a, b] of BONES) {
       ctx.globalAlpha = pts[a][2] < data.min_visibility || pts[b][2] < data.min_visibility ? 0.3 : 1;
       ctx.beginPath(); ctx.moveTo(...xy(a)); ctx.lineTo(...xy(b)); ctx.stroke();
     }
     ctx.globalAlpha = 1;
+    ctx.setLineDash([]);
     const [x, y] = xy(0);
     ctx.font = "bold 18px system-ui";
     ctx.fillStyle = "#000";
@@ -69,7 +72,7 @@ function draw() {
     ctx.fillStyle = color;
     ctx.fillText(d + 1, x - 5, y - 19);
   });
-  info.textContent = `t=${video.currentTime.toFixed(2)}s  dancers tracked: ${shown}/${data.dancers}`;
+  info.textContent = `t=${video.currentTime.toFixed(2)}s  dancers tracked: ${shown}/${data.dancers}  estimated (dashed): ${(frame.e || []).length}`;
 }
 
 async function load() {
