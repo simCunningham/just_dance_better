@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pose debug</title>
+<style>
+  body { margin: 0; background: #111; color: #eee; font: 14px system-ui, sans-serif; }
+  header { padding: 10px 16px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  #stage { position: relative; max-width: 100vw; }
+  video, canvas { display: block; width: 100%; }
+  canvas { position: absolute; inset: 0; height: 100%; pointer-events: none; }
+  #info { color: #aaa; }
+</style>
+</head>
+<body>
+<header>
+  <strong id="title">Loading</strong>
+  <label><input type="checkbox" id="mirror"> Mirror view (what the player copies)</label>
+  <span id="info"></span>
+</header>
+<div id="stage">
+  <video id="video" controls playsinline></video>
+  <canvas id="canvas"></canvas>
+</div>
+<script>
+const id = location.pathname.split("/").pop();
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const mirrorBox = document.getElementById("mirror");
+const info = document.getElementById("info");
+const MIRROR = [0,4,5,6,1,2,3,8,7,10,9,12,11,14,13,16,15,18,17,20,19,22,21,24,23,26,25,28,27,30,29,32,31];
+const BONES = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[27,29],[29,31],[28,30],[30,32],[15,17],[15,19],[15,21],[16,18],[16,20],[16,22],[0,7],[0,8]];
+let data, times;
+
+const unmirror = p => MIRROR.map(i => [1 - p[i][0], p[i][1], p[i][2]]);
+
+function frameAt(t) {
+  let lo = 0, hi = times.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (times[mid] <= t) lo = mid; else hi = mid - 1;
+  }
+  return data.frames[lo];
+}
+
+function draw() {
+  requestAnimationFrame(draw);
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  ctx.clearRect(0, 0, w, h);
+  if (!data) return;
+  const mirrored = mirrorBox.checked;
+  video.style.transform = mirrored ? "scaleX(-1)" : "";
+  const frame = frameAt(video.currentTime);
+  if (!frame.p) { info.textContent = `t=${video.currentTime.toFixed(2)}s  no pose`; return; }
+  const pts = mirrored ? frame.p : unmirror(frame.p);
+  const low = new Set((frame.low || []).map(i => mirrored ? i : MIRROR[i]));
+  const xy = i => [pts[i][0] * w, pts[i][1] * h];
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "#3ee0a0";
+  for (const [a, b] of BONES) {
+    ctx.globalAlpha = low.has(a) || low.has(b) ? 0.3 : 1;
+    ctx.beginPath(); ctx.moveTo(...xy(a)); ctx.lineTo(...xy(b)); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  pts.forEach((_, i) => {
+    ctx.fillStyle = low.has(i) ? "#ff5050" : "#ffd23e";
+    ctx.beginPath(); ctx.arc(...xy(i), 5, 0, 7); ctx.fill();
+  });
+  info.textContent = `t=${video.currentTime.toFixed(2)}s  frame t=${frame.t}s  low-confidence points: ${low.size}`;
+}
+
+async function load() {
+  const song = await fetch(`/songs/${id}`).then(r => r.json());
+  document.getElementById("title").textContent = song.title;
+  video.src = `/songs/${id}/video`;
+  const res = await fetch(`/songs/${id}/choreography`);
+  if (!res.ok) { info.textContent = `No choreography yet (status: ${song.status})`; return; }
+  data = await res.json();
+  times = data.frames.map(f => f.t);
+}
+
+load();
+draw();
+</script>
+</body>
+</html>

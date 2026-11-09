@@ -1,0 +1,8 @@
+fastapi==0.162.2
+imageio-ffmpeg==0.8.1
+mediapipe==1.2.2
+numpy==2.5.4
+opencv-python-headless==5.0.0.93
+python-multipart==0.0.33
+uvicorn==0.54.0
+yt-dlp[default]==2026.10.26

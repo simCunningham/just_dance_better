@@ -1,0 +1,6 @@
+.DS_Store
+__pycache__/
+.venv/
+backend/models/
+songs/*/video.*
+songs/*/choreography.json
