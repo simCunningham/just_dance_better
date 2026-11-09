@@ -20,15 +20,23 @@ DEVICE = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is
 MEAN = np.array([0.485, 0.456, 0.406], np.float32)
 STD = np.array([0.229, 0.224, 0.225], np.float32)
 PARTS = ((0.0, 0.15), (0.15, 0.5), (0.5, 0.88), (0.88, 1.0))
+DETECT_CONF = 0.15
+DETECT_IOU = 0.75
 MIN_HEIGHT = 0.5
 LINK_IOU = 0.35
-CROWD_IOU = 0.25
+AMBIGUOUS = 0.6
+DUPLICATE_IOU = 0.6
+MIN_SIMILARITY = 0.75
+DUPLICATE_LOOK = 0.15
 MAX_LOOK = 0.2
 CHAIN_GAP = 0.4
 ANCHOR_SPAN = 10.0
 RECOVER_IOU = 0.3
-RECOVER_PROB = 0.2
-RECOVER_GAP = 1.5
+RECOVER_PROB = 0.5
+MIN_PROB = 0.5
+SOLO_PROB = 0.8
+RECOVER_GAP = 3.0
+RECOVER_PASSES = 5
 OTHER = -1
 
 
@@ -63,7 +71,7 @@ class Scanner:
         self.landmarker = vision.PoseLandmarker.create_from_options(options)
 
     def __call__(self, frame):
-        r = self.yolo.predict(frame, classes=[0], conf=0.3, iou=0.6, imgsz=1280, device=DEVICE, retina_masks=True, verbose=False)[0]
+        r = self.yolo.predict(frame, classes=[0], conf=DETECT_CONF, iou=DETECT_IOU, imgsz=1280, device=DEVICE, retina_masks=True, verbose=False)[0]
         if r.masks is None:
             return []
         boxes = r.boxes.xyxy.cpu().numpy().astype(float)
@@ -82,7 +90,7 @@ class Scanner:
             crops.append(((cv2.resize(crop, (112, 224)) - MEAN) / STD).transpose(2, 0, 1))
         for person, emb in zip(people, self.embed(crops)):
             person["emb"] = emb
-        return people
+        return dedupe(people)
 
     def colors(self, hsv, mask):
         h, parts = len(mask), []
@@ -116,27 +124,42 @@ class Scanner:
         return np.array([[(x0 + p.x * (x1 - x0)) / w, (y0 + p.y * (y1 - y0)) / h, p.visibility] for p in result.pose_landmarks[0]])
 
 
+def dedupe(found):
+    keep = []
+    for p in sorted(found, key=lambda p: -(p["box"][2] - p["box"][0]) * (p["box"][3] - p["box"][1])):
+        if all(iou(p["box"], k["box"]) < DUPLICATE_IOU or look_distance(p["look"], k["look"]) > DUPLICATE_LOOK for k in keep):
+            keep.append(p)
+    return keep
+
+
+def unit(v):
+    v = np.asarray(v, np.float32)
+    return v / max(np.linalg.norm(v), 1e-6)
+
+
 def tracklets(people):
     done, live = [], []
     for f, found in enumerate(people):
         boxes = [p["box"] for p in found]
-        busy = [any(i != j and iou(a, b) > CROWD_IOU for j, b in enumerate(boxes)) for i, a in enumerate(boxes)]
+        overlap = np.array([[iou(people[tr["frames"][-1]][tr["dets"][-1]]["box"], b) for b in boxes] for tr in live]).reshape(len(live), len(boxes))
         cost = np.ones((len(live), len(boxes)))
         for i, tr in enumerate(live):
             last = people[tr["frames"][-1]][tr["dets"][-1]]
             for j, p in enumerate(found):
-                if not busy[j] and iou(last["box"], p["box"]) > LINK_IOU and look_distance(last["look"], p["look"]) < MAX_LOOK:
-                    cost[i, j] = 1 - iou(last["box"], p["box"])
+                rival = max(np.delete(overlap[i], j).max(initial=0), np.delete(overlap[:, j], i).max(initial=0))
+                if overlap[i, j] > LINK_IOU and rival < AMBIGUOUS * overlap[i, j] and look_distance(last["look"], p["look"]) < MAX_LOOK and tr["mean"] @ unit(p["emb"]) > MIN_SIMILARITY:
+                    cost[i, j] = 1 - overlap[i, j]
         kept, matched = [], set()
         if live and boxes:
             for i, j in zip(*linear_sum_assignment(cost)):
                 if cost[i, j] < 1:
                     live[i]["frames"].append(f)
                     live[i]["dets"].append(j)
+                    live[i]["mean"] = unit(0.9 * live[i]["mean"] + 0.1 * unit(found[j]["emb"]))
                     kept.append(live[i])
                     matched.add(j)
         done += [tr for tr in live if all(tr is not k for k in kept)]
-        live = kept + [{"frames": [f], "dets": [j]} for j in range(len(found)) if j not in matched and not busy[j]]
+        live = kept + [{"frames": [f], "dets": [j], "mean": unit(found[j]["emb"])} for j in range(len(found)) if j not in matched]
     return done + live
 
 
@@ -168,17 +191,17 @@ def chain(times, pieces):
 
 
 def overlaps(a, b):
-    return a["frames"][0] <= b["frames"][-1] and b["frames"][0] <= a["frames"][-1] and bool(set(a["frames"]) & set(b["frames"]))
+    return a["frames"][0] <= b["frames"][-1] and b["frames"][0] <= a["frames"][-1] and not a["seen"].isdisjoint(b["seen"])
 
 
 def anchor(pieces, frames, count):
     def strength(f):
-        active = sorted((len(tr["frames"]) for tr in pieces if tr["frames"][0] <= f <= tr["frames"][-1]), reverse=True)
+        active = sorted((len(tr["frames"]) for tr in pieces if f in tr["seen"]), reverse=True)
         return np.log(active[:count]).sum() if len(active) >= count else -np.inf
     f = max(frames, key=strength)
     if not np.isfinite(strength(f)):
         return None
-    group = sorted((tr for tr in pieces if tr["frames"][0] <= f <= tr["frames"][-1]), key=lambda tr: -len(tr["frames"]))[:count]
+    group = sorted((tr for tr in pieces if f in tr["seen"]), key=lambda tr: -len(tr["frames"]))[:count]
     return strength(f), sorted(group, key=lambda tr: center(tr["boxes"][tr["frames"].index(f)])[0])
 
 
@@ -205,7 +228,7 @@ class Classifier:
         if self.model is None:
             out[0] = 0
             return out
-        for c, v in zip(self.model.classes_, self.model.predict_log_proba(self.scaler.transform(tr["X"])).mean(0)):
+        for c, v in zip(self.model.classes_, np.log(self.model.predict_proba(self.scaler.transform(tr["X"])).mean(0) + 1e-9)):
             out[c] = v
         return out
 
@@ -218,6 +241,8 @@ def identities(times, people, count):
         tr["looks"] = [p["look"] for p in found]
         tr["X"] = np.stack([np.concatenate([p["emb"], np.sqrt(p["look"].flatten()) * 10]) for p in found])
     pieces = chain(times, pieces)
+    for tr in pieces:
+        tr["seen"] = set(tr["frames"])
     span = max(1, int(np.searchsorted(times, times[0] + ANCHOR_SPAN)))
     groups = sorted(filter(None, (anchor(pieces, range(s, min(s + span, len(times))), count) for s in range(0, len(times), span))), key=lambda g: -g[0])
     owner = [[None] * count for _ in times]
@@ -247,7 +272,7 @@ def identities(times, people, count):
         for tr in pending:
             s = scores[id(tr)]
             order = np.argsort(-s)
-            if order[0] == count or not np.isfinite(s[order[0]]):
+            if order[0] == count or s[order[0]] < np.log(MIN_PROB):
                 continue
             confidence = (s[order[0]] - max(s[order[1]], -10)) * np.sqrt(len(tr["frames"]))
             if best is None or confidence > best[0]:
@@ -269,6 +294,15 @@ def identities(times, people, count):
 
 
 def recover(times, people, owner, clf):
+    for _ in range(RECOVER_PASSES):
+        before = sum(j is not None for row in owner for j in row)
+        recover_pass(times, people, owner, clf)
+        if sum(j is not None for row in owner for j in row) == before:
+            break
+    return owner
+
+
+def recover_pass(times, people, owner, clf):
     count = len(owner[0])
     known = [[f for f in range(len(times)) if owner[f][d] is not None] for d in range(count)]
     for f, row in enumerate(owner):
@@ -280,17 +314,16 @@ def recover(times, people, owner, clf):
         scores = clf.model.predict_proba(clf.scaler.transform([np.concatenate([people[f][j]["emb"], np.sqrt(people[f][j]["look"].flatten()) * 10]) for j in free])) if clf.model else None
         cost = np.full((len(missing), len(free)), 9.0)
         for a, d in enumerate(missing):
-            if guess[a] is None:
-                continue
             for b, j in enumerate(free):
-                overlap = iou(guess[a], people[f][j]["box"])
                 p = scores[b][list(clf.model.classes_).index(d)] if scores is not None and d in clf.model.classes_ else 0
+                overlap = iou(guess[a], people[f][j]["box"]) if guess[a] is not None else 0
                 if overlap > RECOVER_IOU and p > RECOVER_PROB:
                     cost[a, b] = (1 - overlap) + (1 - p)
+                elif p > SOLO_PROB:
+                    cost[a, b] = 2 - p
         for a, b in zip(*linear_sum_assignment(cost)):
             if cost[a, b] < 9:
                 row[missing[a]] = free[b]
-    return owner
 
 
 def expected(times, people, owner, seen, d, f):

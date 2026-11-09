@@ -77,6 +77,7 @@ def download_youtube(url, song_id):
         "merge_output_format": "mp4",
         "noplaylist": True,
         "quiet": True,
+        "noprogress": True,
         "js_runtimes": {"node": {"path": shutil.which("node")}} if shutil.which("node") else {},
         "progress_hooks": [lambda d: report(d.get("downloaded_bytes", 0) / (d.get("total_bytes") or d.get("total_bytes_estimate") or 1))],
     }

@@ -65,3 +65,15 @@ cd backend
 ```
 
 Each frame's `d` has one entry per dancer, always in the same order: 33 MediaPipe Pose points normalised to the video's width and height, smoothed and mirrored left to right so the player copies the screen like a mirror, or `null` when that dancer is hidden. Points under `min_visibility` are low confidence.
+
+## Measuring tracking accuracy
+
+`backend/eval/labels/` holds hand-checked answers for the four 30 second test clips (`songs/*_test_30s`): 20 moments × 9 members each, plus which members are fully hidden. A member counts as correct when her ID sits on her, and hidden members are left out.
+
+```bash
+cd backend
+.venv/bin/python eval/score.py score <run.pkl> eval/labels/tt.json
+.venv/bin/python eval/frameview.py ../songs/tt_test_30s/video.mp4 <run.pkl> out.jpg 2.0 3.5
+```
+
+Current: What Is Love 98.9%, TT 94.6%, This Is For 93.9%, Fancy 89.8% (94.4% overall). It's about 96% when gaps under a second are bridged, which the choreography output does.
