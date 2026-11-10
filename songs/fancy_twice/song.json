@@ -1,11 +1,36 @@
 {
   "id": "fancy_twice",
   "title": "Fancy",
-  "status": "new",
+  "status": "ready",
   "artist": "TWICE",
   "dancers": 9,
   "source_url": "https://www.youtube.com/watch?v=lkC9cZIlNI0",
-  "progress": null,
+  "progress": 1,
   "youtube_id": "lkC9cZIlNI0",
-  "mirrored_source": true
+  "mirrored_source": true,
+  "error": null,
+  "frames": 6422,
+  "tracked": [
+    6422,
+    6291,
+    6268,
+    6139,
+    6329,
+    6422,
+    6317,
+    6163,
+    6255
+  ],
+  "estimated": [
+    702,
+    544,
+    576,
+    509,
+    684,
+    448,
+    618,
+    686,
+    625
+  ],
+  "duration": 214.033
 }

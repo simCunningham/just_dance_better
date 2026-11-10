@@ -1,11 +1,36 @@
 {
   "id": "tt_twice",
   "title": "TT",
-  "status": "new",
+  "status": "ready",
   "artist": "TWICE",
   "dancers": 9,
   "source_url": "https://www.youtube.com/watch?v=OiFPivUvuq0",
-  "progress": null,
+  "progress": 1,
   "youtube_id": "OiFPivUvuq0",
-  "mirrored_source": true
+  "mirrored_source": true,
+  "error": null,
+  "frames": 6387,
+  "tracked": [
+    5868,
+    6152,
+    5896,
+    6073,
+    5989,
+    5887,
+    6006,
+    6117,
+    5967
+  ],
+  "estimated": [
+    334,
+    582,
+    252,
+    492,
+    402,
+    322,
+    491,
+    416,
+    874
+  ],
+  "duration": 212.883
 }
