@@ -29,32 +29,41 @@ def init(run, out, wrong, hidden):
     json.dump(lab, open(out, 'w'))
 
 
-def judge(lab, t, d, b):
-    for lt, ld, lb, ok in lab["boxes"]:
-        if abs(lt - t) < 0.3 and ld == d and iou(lb, b) > 0.7:
-            return ok
-    return None
+def matches(lab, t, b):
+    return [(ld, ok) for lt, ld, lb, ok in lab["boxes"] if abs(lt - t) < 0.3 and iou(lb, b) > 0.7]
+
+
+def mapping(rows, lab):
+    from scipy.optimize import linear_sum_assignment
+    n = len(rows[0][2]); count = np.zeros((n, n))
+    for k in samples(rows):
+        t = round(rows[k][0], 2)
+        for d, b in enumerate(rows[k][2]):
+            if b is not None:
+                for ld, ok in matches(lab, t, b):
+                    if ok: count[d, ld] += 1
+    r, c = linear_sum_assignment(-count)
+    return dict(zip(r.tolist(), c.tolist()))
 
 
 def score(run, labf, verbose=True):
-    rows = pickle.load(open(run, 'rb')); lab = load(labf)
+    rows = pickle.load(open(run, 'rb')); lab = load(labf); perm = mapping(rows, lab)
     good = bad = miss = hidden = 0; unknown = []
     for k in samples(rows):
         t = round(rows[k][0], 2)
         for d, b in enumerate(rows[k][2]):
-            if any(abs(t - h[0]) < 0.3 and d == h[1] for h in lab["hidden"]):
-                hidden += 1
-                continue
+            m = perm[d]
             if b is None:
-                miss += 1
+                if any(abs(t - h[0]) < 0.3 and m == h[1] for h in lab["hidden"]): hidden += 1
+                else: miss += 1
                 continue
-            v = judge(lab, t, d, b)
-            if v is None: unknown.append((t, d))
-            elif v: good += 1
-            else: bad += 1
+            found = matches(lab, t, b)
+            if any(ld == m and ok for ld, ok in found): good += 1
+            elif any(ok for ld, ok in found) or any(ld == m for ld, ok in found): bad += 1
+            else: unknown.append((t, d))
     total = good + bad + miss + len(unknown)
     if verbose:
-        print(f"{os.path.basename(run)}: {good}/{total} = {100 * good / total:.1f}%  wrong {bad}  missing {miss}  hidden {hidden}  unverified {len(unknown)}")
+        print(f"{os.path.basename(os.path.dirname(run))}/{os.path.basename(run)}: {good}/{total} = {100 * good / total:.1f}%  wrong {bad}  missing {miss}  hidden {hidden}  unverified {len(unknown)}")
     return good, total, unknown
 
 
