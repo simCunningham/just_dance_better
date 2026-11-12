@@ -1,34 +1,34 @@
 {
   "id": "what_is_love_twice",
   "title": "What Is Love?",
-  "status": "extracting",
+  "status": "ready",
   "artist": "TWICE",
-  "progress": 0.9,
+  "progress": 1,
   "error": null,
   "frames": 6233,
   "tracked": [
-    6065,
-    6213,
-    6110,
-    6139,
-    6040,
-    5936,
-    5999,
-    5777,
-    5909
+    6233,
+    6233,
+    6233,
+    6233,
+    6233,
+    6233,
+    6233,
+    6233,
+    6233
   ],
-  "duration": 207.736,
+  "duration": 207.692,
   "dancers": 9,
   "estimated": [
-    426,
-    603,
-    429,
-    527,
-    314,
-    130,
-    437,
-    392,
-    625
+    581,
+    675,
+    569,
+    609,
+    521,
+    425,
+    694,
+    871,
+    874
   ],
   "members": {
     "t": 31.516,
@@ -99,5 +99,16 @@
       "Mina",
       "Jihyo"
     ]
-  }
+  },
+  "names": [
+    "Jihyo",
+    "Dahyun",
+    "Mina",
+    "Chaeyoung",
+    "Nayeon",
+    "Jeongyeon",
+    "Sana",
+    "Tzuyu",
+    "Momo"
+  ]
 }
