@@ -93,7 +93,8 @@ def process(song_id):
     path = song_dir(song_id)
     write_song(song_id, status="extracting", progress=0, error=None)
     try:
-        stats = extract(path / "video.mp4", dancers=read_song(song_id).get("dancers", 1), on_progress=reporter(song_id))
+        song = read_song(song_id)
+        stats = extract(path / "video.mp4", dancers=song.get("dancers", 1), on_progress=reporter(song_id), members=song.get("members"))
         return write_song(song_id, status="ready", progress=1, **stats)
     except Exception as e:
         write_song(song_id, status="failed", error=str(e))

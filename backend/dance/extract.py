@@ -5,6 +5,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+from scipy.optimize import linear_sum_assignment
 
 from .tracking import Scanner, identities
 
@@ -136,14 +137,29 @@ def build(song_id, times, frames, estimated, width, height, fps, dancers, alpha)
     }
 
 
-def extract(video_path, out_path=None, fps=30, dancers=1, alpha=0.5, on_progress=None):
+def name_dancers(times, frames, members, width, height):
+    row = frames[int(np.argmin(np.abs(np.array(times) - members["t"])))]
+    boxes = np.array(members["boxes"]) / [width, height, width, height]
+    spots = np.array([[p[[23, 24], 0].mean(), p[[11, 12, 23, 24], 1].mean()] for p in row])
+    centers = np.stack([(boxes[:, 0] + boxes[:, 2]) / 2, boxes[:, 1] * 0.6 + boxes[:, 3] * 0.4], 1)
+    cost = np.linalg.norm(spots[:, None] - centers[None], axis=2)
+    names = [None] * len(row)
+    for d, b in zip(*linear_sum_assignment(cost)):
+        names[d] = members["names"][b]
+    return names
+
+
+def extract(video_path, out_path=None, fps=30, dancers=1, alpha=0.5, on_progress=None, members=None):
     video_path = Path(video_path)
     out_path = Path(out_path or video_path.with_name("choreography.json"))
     times, frames, estimated, width, height = detect(video_path, fps, dancers, on_progress)
-    out_path.write_text(json.dumps(build(video_path.parent.name, times, frames, estimated, width, height, fps, dancers, alpha), separators=(",", ":")))
+    data = build(video_path.parent.name, times, frames, estimated, width, height, fps, dancers, alpha)
+    if members:
+        data["names"] = name_dancers(times, frames, members, width, height)
+    out_path.write_text(json.dumps(data, separators=(",", ":")))
     tracked = [sum(f[d] is not None for f in frames) for d in range(dancers)]
     guessed = [sum(d in e for e in estimated) for d in range(dancers)]
-    return {"frames": len(frames), "tracked": tracked, "estimated": guessed, "duration": round(times[-1], 3) if times else 0}
+    return {"frames": len(frames), "tracked": tracked, "estimated": guessed, "names": data.get("names"), "duration": round(times[-1], 3) if times else 0}
 
 
 def main():

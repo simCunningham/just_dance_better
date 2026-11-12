@@ -66,11 +66,12 @@ function draw() {
     ctx.globalAlpha = 1;
     ctx.setLineDash([]);
     const [x, y] = xy(0);
+    const label = (data.names && data.names[d]) || d + 1;
     ctx.font = "bold 18px system-ui";
     ctx.fillStyle = "#000";
-    ctx.fillText(d + 1, x - 4, y - 18);
+    ctx.fillText(label, x - 4, y - 18);
     ctx.fillStyle = color;
-    ctx.fillText(d + 1, x - 5, y - 19);
+    ctx.fillText(label, x - 5, y - 19);
   });
   info.textContent = `t=${video.currentTime.toFixed(2)}s  dancers tracked: ${shown}/${data.dancers}  estimated (dashed): ${(frame.e || []).length}`;
 }
