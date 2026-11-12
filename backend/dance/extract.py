@@ -1,5 +1,6 @@
 import argparse
 import json
+import pickle
 from pathlib import Path
 
 import cv2
@@ -8,15 +9,17 @@ import numpy as np
 from .tracking import Scanner, identities
 
 MIN_VISIBILITY = 0.5
-MAX_FILL = 2.0
 
 
-def detect(video_path, fps, dancers, on_progress=None):
+def scan(video_path, fps, on_progress=None):
+    cache = video_path.with_name("scan.pkl")
+    if cache.exists():
+        return pickle.loads(cache.read_bytes())
     cap = cv2.VideoCapture(str(video_path))
     src_fps = cap.get(cv2.CAP_PROP_FPS) or 30
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    width, height = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    scan = Scanner()
+    size = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    scanner = Scanner()
     times, people = [], []
     next_t, index = 0.0, 0
     while cap.grab():
@@ -26,14 +29,22 @@ def detect(video_path, fps, dancers, on_progress=None):
             continue
         next_t += 1 / fps
         _, frame = cap.retrieve()
-        found = scan(frame)
+        found = scanner(frame)
         for p in found:
             p["emb"] = p["emb"].astype(np.float16)
+            p["look"] = p["look"].astype(np.float32)
         times.append(t)
         people.append(found)
         if on_progress and total:
             on_progress(min(index / total, 1) * 0.95)
     cap.release()
+    result = times, people, size
+    cache.write_bytes(pickle.dumps(result))
+    return result
+
+
+def detect(video_path, fps, dancers, on_progress=None):
+    times, people, (width, height) = scan(video_path, fps, on_progress)
     owner = identities(times, people, dancers)
     frames = [[None if j is None else people[f][j]["pose"] for j in row] for f, row in enumerate(owner)]
     frames, estimated = fill(times, frames, dancers)
@@ -44,12 +55,19 @@ def fill(times, frames, dancers):
     estimated = [[] for _ in times]
     for d in range(dancers):
         seen = [f for f in range(len(times)) if frames[f][d] is not None]
-        for a, b in zip(seen, seen[1:]):
-            if b - a > 1 and times[b] - times[a] <= MAX_FILL:
-                for f in range(a + 1, b):
-                    k = (times[f] - times[a]) / (times[b] - times[a])
-                    frames[f][d] = frames[a][d] * (1 - k) + frames[b][d] * k
-                    estimated[f].append(d)
+        if not seen:
+            continue
+        for f in range(len(times)):
+            if frames[f][d] is not None:
+                continue
+            k = int(np.searchsorted(seen, f))
+            if k == 0 or k == len(seen):
+                frames[f][d] = frames[seen[min(k, len(seen) - 1)]][d]
+            else:
+                a, b = seen[k - 1], seen[k]
+                w = (times[f] - times[a]) / (times[b] - times[a])
+                frames[f][d] = frames[a][d] * (1 - w) + frames[b][d] * w
+            estimated[f].append(d)
     return frames, estimated
 
 

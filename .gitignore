@@ -4,3 +4,4 @@ __pycache__/
 backend/models/
 songs/*/video.*
 songs/*/choreography.json
+songs/*/scan.pkl
