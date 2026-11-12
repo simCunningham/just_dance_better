@@ -1,9 +1,9 @@
 {
   "id": "this_is_for_twice",
   "title": "This Is For",
-  "status": "ready",
+  "status": "extracting",
   "artist": "TWICE",
-  "progress": 1,
+  "progress": 0.35,
   "error": null,
   "frames": 4016,
   "tracked": [

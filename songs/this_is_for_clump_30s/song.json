@@ -1,1 +1,29 @@
-{"id": "this_is_for_clump_30s", "title": "this_is_for_twice test clip from 100s", "artist": "TWICE", "dancers": 9, "status": "new"}
+{
+  "id": "this_is_for_clump_30s",
+  "title": "this_is_for_twice test clip from 100s",
+  "artist": "TWICE",
+  "dancers": 9,
+  "status": "ready",
+  "tracked": [
+    900,
+    900,
+    900,
+    900,
+    900,
+    900,
+    900,
+    900,
+    900
+  ],
+  "estimated": [
+    3,
+    84,
+    149,
+    122,
+    352,
+    337,
+    225,
+    175,
+    314
+  ]
+}

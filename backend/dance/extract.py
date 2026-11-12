@@ -9,6 +9,13 @@ import numpy as np
 from .tracking import Scanner, identities
 
 MIN_VISIBILITY = 0.5
+FLOOR_BAND = 0.06
+SIDES = {1: (0.015, 0.055), 2: (0.02, 0.055), 3: (0.025, 0.055), 7: (0.035, 0.06), 9: (0.015, 0.09), 11: (0.11, 0.19), 13: (0.125, 0.36), 15: (0.13, 0.5), 17: (0.135, 0.54), 19: (0.13, 0.55), 21: (0.12, 0.53), 23: (0.065, 0.52), 25: (0.07, 0.74), 27: (0.07, 0.94), 29: (0.07, 0.97), 31: (0.085, 1.0)}
+STANDING = np.zeros((33, 2))
+STANDING[0] = 0, 0.07
+for left, (x, y) in SIDES.items():
+    STANDING[left] = x, y
+    STANDING[left + (3 if left < 4 else 1)] = -x, y
 
 
 def scan(video_path, fps, on_progress=None):
@@ -47,26 +54,36 @@ def detect(video_path, fps, dancers, on_progress=None):
     times, people, (width, height) = scan(video_path, fps, on_progress)
     owner = identities(times, people, dancers)
     frames = [[None if j is None else people[f][j]["pose"] for j in row] for f, row in enumerate(owner)]
-    frames, estimated = fill(times, frames, dancers)
+    frames, estimated = fill(times, frames, dancers, height / width)
     return times, frames, estimated, width, height
 
 
-def fill(times, frames, dancers):
+def standing(x, feet, tall, aspect):
+    pose = np.ones((33, 3))
+    pose[:, 0] = x + STANDING[:, 0] * tall * aspect
+    pose[:, 1] = feet - (1 - STANDING[:, 1]) * tall
+    return pose
+
+
+def fill(times, frames, dancers, aspect):
     estimated = [[] for _ in times]
+    spans = [p[[27, 28], 1].mean() - p[[11, 12], 1].mean() for row in frames for p in row if p is not None]
+    typical = np.median(spans) if spans else 0
+    floor = [np.median([p[[27, 28], 1].mean() for p in row if p is not None]) if any(p is not None for p in row) else None for row in frames]
     for d in range(dancers):
         seen = [f for f in range(len(times)) if frames[f][d] is not None]
         if not seen:
             continue
+        spot = np.array([[frames[f][d][[23, 24], 0].mean(), frames[f][d][[27, 28], 1].mean(), frames[f][d][[27, 28], 1].mean() - frames[f][d][[11, 12], 1].mean()] for f in seen])
+        tall = min(np.median(spot[:, 2]), typical) / 0.8
         for f in range(len(times)):
             if frames[f][d] is not None:
                 continue
-            k = int(np.searchsorted(seen, f))
-            if k == 0 or k == len(seen):
-                frames[f][d] = frames[seen[min(k, len(seen) - 1)]][d]
-            else:
-                a, b = seen[k - 1], seen[k]
-                w = (times[f] - times[a]) / (times[b] - times[a])
-                frames[f][d] = frames[a][d] * (1 - w) + frames[b][d] * w
+            x, feet = (np.interp(times[f], [times[g] for g in seen], spot[:, i]) for i in (0, 1))
+            if floor[f] is not None:
+                feet = np.clip(feet, floor[f] - FLOOR_BAND, floor[f] + FLOOR_BAND)
+            feet += 0.06 * tall
+            frames[f][d] = standing(x, feet, tall, aspect)
             estimated[f].append(d)
     return frames, estimated
 

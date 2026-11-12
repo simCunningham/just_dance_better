@@ -1,1 +1,29 @@
-{"id": "this_is_for_back_30s", "title": "this_is_for_twice test clip from 30s", "artist": "TWICE", "dancers": 9, "status": "new"}
+{
+  "id": "this_is_for_back_30s",
+  "title": "this_is_for_twice test clip from 30s",
+  "artist": "TWICE",
+  "dancers": 9,
+  "status": "ready",
+  "tracked": [
+    900,
+    900,
+    900,
+    900,
+    900,
+    900,
+    900,
+    900,
+    900
+  ],
+  "estimated": [
+    56,
+    35,
+    11,
+    19,
+    161,
+    43,
+    123,
+    161,
+    220
+  ]
+}

@@ -50,7 +50,7 @@ cd backend
 3. MediaPipe Pose runs on each person with everyone else masked out, giving 33 body points.
 4. Frame-to-frame box overlap builds short, certain track pieces. Pieces break whenever people overlap or their look changes.
 5. The pieces are joined into the requested number of dancers. A moment where every dancer is clearly visible fixes the IDs (numbered left to right). A per-video classifier then learns each dancer's look, matches the other clear moments to them, and labels the remaining pieces, never giving one dancer two places at once.
-6. Gaps during crossings are filled from detections that fit both the expected position and the dancer's look, and every remaining gap is bridged: the dancer's figure is held between her last and next clear poses and marked as estimated.
+6. Gaps during crossings are filled from detections that fit both the expected position and the dancer's look, and every remaining gap is bridged: the dancer gets a neutral standing figure (arms by her side) placed where she is in the group, marked as estimated.
 
 ## Choreography format
 
@@ -64,7 +64,7 @@ cd backend
 }
 ```
 
-Each frame's `d` has one entry per dancer, always in the same order: 33 MediaPipe Pose points normalised to the video's width and height, smoothed, in the video's own orientation (source videos are mirrored dance practice uploads, so the player copies the screen like a mirror), `e` lists the dancers whose pose in that frame is estimated (held while hidden or stacked behind others), so the game can skip scoring them. Points under `min_visibility` are low confidence.
+Each frame's `d` has one entry per dancer, always in the same order: 33 MediaPipe Pose points normalised to the video's width and height, smoothed, in the video's own orientation (source videos are mirrored dance practice uploads, so the player copies the screen like a mirror), `e` lists the dancers whose pose in that frame is estimated (a standing placeholder while she is hidden or stacked behind others), so the game can skip scoring them. Points under `min_visibility` are low confidence.
 
 ## Measuring tracking accuracy
 
