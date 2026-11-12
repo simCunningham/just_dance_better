@@ -24,14 +24,13 @@ def scan(video_path, fps, on_progress=None):
     if cache.exists():
         return pickle.loads(cache.read_bytes())
     cap = cv2.VideoCapture(str(video_path))
-    src_fps = cap.get(cv2.CAP_PROP_FPS) or 30
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     size = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     scanner = Scanner()
     times, people = [], []
     next_t, index = 0.0, 0
     while cap.grab():
-        t = index / src_fps
+        t = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
         index += 1
         if t + 1e-6 < next_t:
             continue
