@@ -52,6 +52,16 @@ cd backend
 5. The pieces are joined into the requested number of dancers. A moment where every dancer is clearly visible fixes the IDs (numbered left to right). A per-video classifier then learns each dancer's look, matches the other clear moments to them, and labels the remaining pieces, never giving one dancer two places at once.
 6. Gaps during crossings are filled from detections that fit both the expected position and the dancer's look, and every remaining gap is bridged: the dancer gets a neutral standing figure (arms by her side) placed where she is in the group, marked as estimated.
 
+## Cleaning up poses
+
+After tracking, each dancer's poses are repaired before the file is written:
+
+- A skeleton that collapses (much shorter than the dancer's box, or suddenly short with hidden legs) or briefly hops onto a neighbour is rebuilt from the poses just before and after. If the gap is longer than a second, a standing figure is placed on the dancer's box.
+- Arms and legs are capped at 1.4× their usual length.
+- Hidden joints move with the body instead of freezing in place.
+- A hidden dancer's standing figure is sized to the dancers around her and placed on a nearby untracked person, or stacked behind the nearest tracked dancer.
+- `ignore` in `song.json` lists regions the tracker should skip, such as mirrors: `[x0, y0, x1, y1]` in fractions of the frame, optionally followed by a start and end time in seconds.
+
 ## Choreography format
 
 ```json
