@@ -5,7 +5,7 @@ Turn a dance video (a file or a YouTube link) into a playable routine scored liv
 ## Layout
 
 - `backend/` Python: dancer tracking and pose extraction, and the song API (FastAPI)
-- `frontend/` React game (Phase 2, not built yet)
+- `frontend/` React game played with a webcam
 - `songs/<id>/` one folder per song: `video.mp4`, `choreography.json`, `song.json`
 
 ## Backend setup
@@ -35,6 +35,41 @@ cd backend
 - `POST /songs/upload` form fields `file`, `title`, `dancers`
 - `POST /songs/{id}/extract?dancers=9` re-run extraction
 - `GET /debug/{id}` skeleton drawn over the video, to check tracking by eye
+
+- `GET /songs/{id}/moves?dancers=0,4` the chosen dancers' poses, trimmed to the 13 joints the game scores
+- `GET /model` the pose model the browser uses
+- `WS /rooms/{code}?device=...` relays messages between the devices in a room
+
+## Play the game
+
+Tested with Node 22. Start the API, then:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://localhost:5173. The game plays What Is Love? for now.
+
+1. Choose how many players share this camera (1 to 4) and pick a member for each, on the reference frame or the name buttons. Players stand in order from left to right.
+2. The camera check shows when everyone is in full view. Press Start.
+3. The video plays with each player's member outlined. Every second each player gets Perfect, Good, OK or Miss from how closely their arms and legs match the member's, and combos add bonus points. Moments when the member is hidden are not scored.
+4. The results show scores, rating counts, a timeline of the song and each member's best score on this browser.
+
+### More players on other devices
+
+Every game is a room. Another laptop or phone that opens the join link or scans the QR code can add up to 4 more players on its own camera, 9 players in total. Each device tracks and scores its own players and shares only the scores. The host's video is the clock and the others follow it, muted unless sound is turned on.
+
+Browsers only allow the camera on a secure page, so for devices on the same Wi-Fi run:
+
+```bash
+npm run dev:lan
+```
+
+and open the `https` Network address it prints on every device, accepting the self-signed certificate warning once.
+
+To play over the internet, point a tunnel such as `cloudflared tunnel --url http://localhost:5173` at `npm run dev` and share the join link from the tunnel's address.
 
 ## Extract from the command line
 
