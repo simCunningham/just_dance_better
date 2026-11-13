@@ -81,6 +81,13 @@ export default function Game({ moves, members, names, host, clock, others, onTal
     })
   }
 
+  const toggle = () => {
+    const v = video.current!
+    if (v.paused) v.play()
+    else v.pause()
+    setPaused(v.paused)
+  }
+
   const board = [
     ...members.map((member, i) => ({ member, color: COLORS[i], ...tallies[i] })),
     ...Object.values(others).flat().map(p => ({ ...p, color: '#aaa' })),
@@ -91,7 +98,7 @@ export default function Game({ moves, members, names, host, clock, others, onTal
       <div className="stage" style={{ '--aspect': moves.aspect } as React.CSSProperties}>
         <video ref={video} src={VIDEO} muted={muted} playsInline preload="auto" onEnded={() => host && onEnd()} />
         <canvas ref={overlay} />
-        {(count > 0 || (!host && paused)) && <div className="count">{host ? count : 'Get ready'}</div>}
+        {(count > 0 || paused) && <div className="count">{count || (video.current?.currentTime ? 'Paused' : 'Get ready')}</div>}
       </div>
       <ol className="board">
         {board.map(row => (
@@ -113,7 +120,14 @@ export default function Game({ moves, members, names, host, clock, others, onTal
             </span>
           ))}
         </div>
-        {host ? <button onClick={onEnd}>End song</button> : <button onClick={() => setMuted(!muted)}>{muted ? 'Turn sound on' : 'Turn sound off'}</button>}
+        {host ? (
+          <div className="controls">
+            <button disabled={count > 0} onClick={toggle}>{paused ? 'Resume' : 'Pause'}</button>
+            <button onClick={onEnd}>End song</button>
+          </div>
+        ) : (
+          <button onClick={() => setMuted(!muted)}>{muted ? 'Turn sound on' : 'Turn sound off'}</button>
+        )}
       </div>
     </main>
   )
