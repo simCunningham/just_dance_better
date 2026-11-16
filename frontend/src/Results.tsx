@@ -1,15 +1,15 @@
 import { useMemo } from 'react'
-import { COLORS, SONG } from './api'
+import { COLORS } from './api'
 import type { Player } from './room'
 import { RATINGS, type Tally } from './score'
 
-type Props = { names: string[]; members: number[]; tallies: Tally[]; others: Record<string, Player[]>; host: boolean; onAgain: () => void }
+type Props = { song: string; names: string[]; members: number[]; tallies: Tally[]; others: Record<string, Player[]>; host: boolean; onAgain: () => void }
 
-export default function Results({ names, members, tallies, others, host, onAgain }: Props) {
+export default function Results({ song, names, members, tallies, others, host, onAgain }: Props) {
   const bests = useMemo(
     () =>
       members.map((member, i) => {
-        const key = `best:${SONG}:${member}`
+        const key = `best:${song}:${member}`
         const before = Number(localStorage[key] ?? 0)
         const score = tallies[i]?.score ?? 0
         if (score > before) localStorage[key] = score

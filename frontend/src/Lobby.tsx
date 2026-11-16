@@ -1,12 +1,14 @@
 import QRCode from 'qrcode'
 import { useEffect, useState } from 'react'
-import { COLORS, VIDEO, joinUrl, type Song } from './api'
+import { COLORS, joinUrl, videoUrl, type Song } from './api'
 import CamView from './CamView'
 import { fullBody } from './pose'
 import type { Player } from './room'
 
 type Props = {
   song: Song
+  songs: Song[]
+  onSong: (id: string) => void
   members: number[]
   setMembers: (members: number[]) => void
   others: Record<string, Player[]>
@@ -17,7 +19,7 @@ type Props = {
   onJoin: (code: string) => void
 }
 
-export default function Lobby({ song, members, setMembers, others, code, host, busy, onStart, onJoin }: Props) {
+export default function Lobby({ song, songs, onSong, members, setMembers, others, code, host, busy, onStart, onJoin }: Props) {
   const [active, setActive] = useState(0)
   const [size, setSize] = useState([16, 9])
   const [visible, setVisible] = useState(0)
@@ -57,6 +59,12 @@ export default function Lobby({ song, members, setMembers, others, code, host, b
       <header>
         <h1>Just Dance Better</h1>
         <p>{song.title} · {song.artist}</p>
+        <div className="chips songs">
+          {songs.map(s => (
+            <button key={s.id} className={s.id === song.id ? 'on' : ''} disabled={!host && s.id !== song.id} onClick={() => onSong(s.id)}>{s.title}</button>
+          ))}
+        </div>
+        {!host && <p>The host picks the song.</p>}
       </header>
       <section className="pick">
         <h2>Pick who you dance as</h2>
@@ -76,7 +84,7 @@ export default function Lobby({ song, members, setMembers, others, code, host, b
         </div>
         {song.members && (
           <div className="frame" style={{ aspectRatio: `${size[0]} / ${size[1]}` }}>
-            <video src={`${VIDEO}#t=${song.members.t}`} muted playsInline preload="metadata" onLoadedMetadata={e => setSize([e.currentTarget.videoWidth, e.currentTarget.videoHeight])} />
+            <video key={song.id} src={`${videoUrl(song.id)}#t=${song.members.t}`} muted playsInline preload="metadata" onLoadedMetadata={e => setSize([e.currentTarget.videoWidth, e.currentTarget.videoHeight])} />
             {song.members.boxes.map(([x0, y0, x1, y1], i) => {
               const { text, ...rest } = label(song.names.indexOf(song.members!.names[i]))
               return (

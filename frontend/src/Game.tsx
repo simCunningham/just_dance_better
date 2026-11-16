@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
-import { COLORS, VIDEO, drawPose, type Moves, type Pose } from './api'
+import { COLORS, drawPose, type Moves, type Pose } from './api'
 import CamView from './CamView'
 import type { Player } from './room'
 import { RATINGS, Scorer, frameAt, type Tally } from './score'
 
 type Props = {
+  video: string
   moves: Moves
   members: number[]
   names: string[]
@@ -15,7 +16,7 @@ type Props = {
   onEnd: () => void
 }
 
-export default function Game({ moves, members, names, host, clock, others, onTallies, onEnd }: Props) {
+export default function Game({ video: src, moves, members, names, host, clock, others, onTallies, onEnd }: Props) {
   const video = useRef<HTMLVideoElement>(null)
   const overlay = useRef<HTMLCanvasElement>(null)
   const scorers = useMemo(() => members.map(member => new Scorer(moves, moves.dancers.indexOf(member))), [moves, members])
@@ -96,7 +97,7 @@ export default function Game({ moves, members, names, host, clock, others, onTal
   return (
     <main className="game">
       <div className="stage" style={{ '--aspect': moves.aspect } as React.CSSProperties}>
-        <video ref={video} src={VIDEO} muted={muted} playsInline preload="auto" onEnded={() => host && onEnd()} />
+        <video ref={video} src={src} muted={muted} playsInline preload="auto" onEnded={() => host && onEnd()} />
         <canvas ref={overlay} />
         {(count > 0 || paused) && <div className="count">{count || (video.current?.currentTime ? 'Paused' : 'Get ready')}</div>}
       </div>
