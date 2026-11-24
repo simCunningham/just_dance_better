@@ -1,6 +1,6 @@
 export type Point = [number, number, number]
 export type Pose = Point[]
-export type Song = { id: string; status?: string; title: string; artist?: string; names: string[]; crop?: number[]; members?: { t: number; boxes: number[][]; names: string[] } }
+export type Song = { id: string; status?: string; title: string; artist?: string; names: string[]; crop?: number[]; start?: number; members?: { t: number; boxes: number[][]; names: string[] } }
 export type Moves = { aspect: number; min_visibility: number; t: number[]; e: boolean[][]; dancers: number[]; d: Pose[][] }
 
 declare const __LAN__: string

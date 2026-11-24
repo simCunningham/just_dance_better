@@ -7,6 +7,7 @@ import { RATINGS, Scorer, frameAt, type Tally } from './score'
 type Props = {
   video: string
   crop: number[]
+  start: number
   moves: Moves
   members: number[]
   names: string[]
@@ -22,13 +23,17 @@ export type Clock = { t: number; playing: boolean; at: number; count: number }
 
 export const COUNTDOWN = 5
 
-export default function Game({ video: src, crop, moves, members, names, host, clock, others, onTallies, onEnd, onRestart }: Props) {
+const clockText = (t: number) => `${Math.floor(Math.max(0, t) / 60)}:${String(Math.floor(Math.max(0, t) % 60)).padStart(2, '0')}`
+
+export default function Game({ video: src, crop, start, moves, members, names, host, clock, others, onTallies, onEnd, onRestart }: Props) {
   const video = useRef<HTMLVideoElement>(null)
   const overlay = useRef<HTMLCanvasElement>(null)
   const scorers = useMemo(() => members.map(member => new Scorer(moves, moves.dancers.indexOf(member))), [moves, members])
   const [count, setCount] = useState(host ? COUNTDOWN : 0)
   const [muted, setMuted] = useState(!host)
   const [paused, setPaused] = useState(true)
+  const [now, setNow] = useState(start)
+  const [length, setLength] = useState(0)
   const [tallies, setTallies] = useState(() => scorers.map(s => ({ ...s.tally })))
 
   useEffect(() => {
@@ -114,9 +119,15 @@ export default function Game({ video: src, crop, moves, members, names, host, cl
   return (
     <main className="game">
       <div className="stage" style={{ '--aspect': (moves.aspect * (x1 - x0)) / (y1 - y0) } as React.CSSProperties}>
-        <video ref={video} src={src} style={{ left: `${(-x0 / (x1 - x0)) * 100}%`, top: `${(-y0 / (y1 - y0)) * 100}%`, width: `${100 / (x1 - x0)}%`, height: `${100 / (y1 - y0)}%` }} muted={muted} playsInline preload="auto" onEnded={() => host && onEnd()} />
+        <video ref={video} src={`${src}#t=${start}`} onLoadedMetadata={e => setLength(e.currentTarget.duration)} onTimeUpdate={e => setNow(e.currentTarget.currentTime)} style={{ left: `${(-x0 / (x1 - x0)) * 100}%`, top: `${(-y0 / (y1 - y0)) * 100}%`, width: `${100 / (x1 - x0)}%`, height: `${100 / (y1 - y0)}%` }} muted={muted} playsInline preload="auto" onEnded={() => host && onEnd()} />
         <canvas ref={overlay} />
-        {(shown > 0 || paused) && <div className="count">{shown > 0 ? <b key={shown}>{shown}</b> : video.current?.currentTime ? 'Paused' : 'Get ready'}</div>}
+        {length > 0 && (
+          <div className="progress">
+            <i style={{ width: `${(Math.max(0, now - start) / (length - start)) * 100}%` }} />
+            <span>{clockText(now - start)} / {clockText(length - start)}</span>
+          </div>
+        )}
+        {(shown > 0 || paused) && <div className="count">{shown > 0 ? <b key={shown}>{shown}</b> : now > start + 0.1 ? 'Paused' : 'Get ready'}</div>}
       </div>
       <ol className="board">
         {board.map(row => (

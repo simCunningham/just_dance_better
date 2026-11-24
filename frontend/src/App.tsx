@@ -94,7 +94,7 @@ export default function App() {
   }
 
   if (phase === 'play' && moves)
-    return <Game key={`${song.id}:${moves.t.length}:${members.join()}:${round}`} video={videoUrl(song.id)} crop={cropOf(song)} moves={moves} members={members} names={song.names} host={host} clock={clock} others={others} onTallies={setTallies} onEnd={() => setPhase('results')} onRestart={restart} />
+    return <Game key={`${song.id}:${moves.t.length}:${members.join()}:${round}`} video={videoUrl(song.id)} crop={cropOf(song)} start={song.start ?? 0} moves={moves} members={members} names={song.names} host={host} clock={clock} others={others} onTallies={setTallies} onEnd={() => setPhase('results')} onRestart={restart} />
   if (phase === 'results')
     return <Results key={round} song={song} names={song.names} members={moves ? members : []} tallies={tallies} others={others} host={host} onHome={home} onRestart={restart} />
   return (
