@@ -1,31 +1,44 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
-import { COLORS, VIDEO, drawPose, type Moves, type Pose } from './api'
+import { COLORS, drawPose, type Moves, type Pose } from './api'
 import CamView from './CamView'
 import type { Player } from './room'
 import { RATINGS, Scorer, frameAt, type Tally } from './score'
 
 type Props = {
+  video: string
+  crop: number[]
+  start: number
   moves: Moves
   members: number[]
   names: string[]
   host: boolean
-  clock: RefObject<{ t: number; playing: boolean; at: number }>
+  clock: RefObject<Clock>
   others: Record<string, Player[]>
   onTallies: (tallies: Tally[]) => void
   onEnd: () => void
+  onRestart: () => void
 }
 
-export default function Game({ moves, members, names, host, clock, others, onTallies, onEnd }: Props) {
+export type Clock = { t: number; playing: boolean; at: number; count: number }
+
+export const COUNTDOWN = 5
+
+const clockText = (t: number) => `${Math.floor(Math.max(0, t) / 60)}:${String(Math.floor(Math.max(0, t) % 60)).padStart(2, '0')}`
+
+export default function Game({ video: src, crop, start, moves, members, names, host, clock, others, onTallies, onEnd, onRestart }: Props) {
   const video = useRef<HTMLVideoElement>(null)
   const overlay = useRef<HTMLCanvasElement>(null)
   const scorers = useMemo(() => members.map(member => new Scorer(moves, moves.dancers.indexOf(member))), [moves, members])
-  const [count, setCount] = useState(host ? 3 : 0)
+  const [count, setCount] = useState(host ? COUNTDOWN : 0)
   const [muted, setMuted] = useState(!host)
   const [paused, setPaused] = useState(true)
+  const [now, setNow] = useState(start)
+  const [length, setLength] = useState(0)
   const [tallies, setTallies] = useState(() => scorers.map(s => ({ ...s.tally })))
 
   useEffect(() => {
     if (!host) return
+    clock.current.count = count
     if (!count) {
       video.current?.play()
       return
@@ -66,7 +79,12 @@ export default function Game({ moves, members, names, host, clock, others, onTal
     const h = c.clientHeight * devicePixelRatio
     if (c.width !== w || c.height !== h) Object.assign(c, { width: w, height: h })
     const ctx = c.getContext('2d')!
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, w, h)
+    const [x0, y0, x1, y1] = crop
+    const fw = w / (x1 - x0)
+    const fh = h / (y1 - y0)
+    ctx.setTransform(1, 0, 0, 1, -x0 * fw, -y0 * fh)
     ctx.lineWidth = h / 150
     ctx.font = `600 ${h / 36}px system-ui`
     ctx.textAlign = 'center'
@@ -75,18 +93,23 @@ export default function Game({ moves, members, names, host, clock, others, onTal
       const k = moves.dancers.indexOf(member)
       const pose = moves.d[k][at]
       ctx.globalAlpha = moves.e[k][at] ? 0.3 : 0.85
-      drawPose(ctx, pose, w, h, COLORS[i], moves.min_visibility)
+      drawPose(ctx, pose, fw, fh, COLORS[i], moves.min_visibility)
       ctx.fillStyle = COLORS[i]
-      ctx.fillText(names[member], pose[0][0] * w, pose[0][1] * h - h / 22)
+      ctx.fillText(names[member], pose[0][0] * fw, pose[0][1] * fh - h / 22)
     })
   }
 
   const toggle = () => {
     const v = video.current!
-    if (v.paused) v.play()
-    else v.pause()
-    setPaused(v.paused)
+    if (v.paused) setCount(COUNTDOWN)
+    else {
+      v.pause()
+      setPaused(true)
+    }
   }
+
+  const shown = host ? count : clock.current.count
+  const [x0, y0, x1, y1] = crop
 
   const board = [
     ...members.map((member, i) => ({ member, color: COLORS[i], ...tallies[i] })),
@@ -95,10 +118,16 @@ export default function Game({ moves, members, names, host, clock, others, onTal
 
   return (
     <main className="game">
-      <div className="stage" style={{ '--aspect': moves.aspect } as React.CSSProperties}>
-        <video ref={video} src={VIDEO} muted={muted} playsInline preload="auto" onEnded={() => host && onEnd()} />
+      <div className="stage" style={{ '--aspect': (moves.aspect * (x1 - x0)) / (y1 - y0) } as React.CSSProperties}>
+        <video ref={video} src={`${src}#t=${start}`} onLoadedMetadata={e => setLength(e.currentTarget.duration)} onTimeUpdate={e => setNow(e.currentTarget.currentTime)} style={{ left: `${(-x0 / (x1 - x0)) * 100}%`, top: `${(-y0 / (y1 - y0)) * 100}%`, width: `${100 / (x1 - x0)}%`, height: `${100 / (y1 - y0)}%` }} muted={muted} playsInline preload="auto" onEnded={() => host && onEnd()} />
         <canvas ref={overlay} />
-        {(count > 0 || paused) && <div className="count">{count || (video.current?.currentTime ? 'Paused' : 'Get ready')}</div>}
+        {length > 0 && (
+          <div className="progress">
+            <i style={{ width: `${(Math.max(0, now - start) / (length - start)) * 100}%` }} />
+            <span>{clockText(now - start)} / {clockText(length - start)}</span>
+          </div>
+        )}
+        {(shown > 0 || paused) && <div className="count">{shown > 0 ? <b key={shown}>{shown}</b> : now > start + 0.1 ? 'Paused' : 'Get ready'}</div>}
       </div>
       <ol className="board">
         {board.map(row => (
@@ -123,6 +152,7 @@ export default function Game({ moves, members, names, host, clock, others, onTal
         {host ? (
           <div className="controls">
             <button disabled={count > 0} onClick={toggle}>{paused ? 'Resume' : 'Pause'}</button>
+            <button disabled={count > 0} onClick={onRestart}>Restart</button>
             <button onClick={onEnd}>End song</button>
           </div>
         ) : (

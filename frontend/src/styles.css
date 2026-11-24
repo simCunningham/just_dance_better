@@ -30,6 +30,8 @@ button.start { background: var(--pink); border-color: var(--pink); color: #fff; 
 .frame button:hover:enabled { border-color: #fff; background: #fff2; }
 .frame span { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); white-space: nowrap; font-size: 0.75rem; background: #000b; padding: 1px 6px; border-radius: 6px; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.songs { width: 100%; margin-top: 0; }
+.songs .on { background: var(--pink); border-color: var(--pink); color: #fff; }
 .cam { position: relative; background: #000; border-radius: 12px; overflow: hidden; aspect-ratio: 16 / 9; }
 .cam canvas { width: 100%; height: 100%; object-fit: contain; display: block; }
 .cam p { position: absolute; inset: 0; display: grid; place-items: center; padding: 12px; text-align: center; }
@@ -40,8 +42,12 @@ button.start { background: var(--pink); border-color: var(--pink); color: #fff; 
 .room input { width: 8em; text-transform: uppercase; }
 
 .game { position: fixed; inset: 0; display: grid; place-items: center; background: #000; }
-.stage { position: relative; aspect-ratio: var(--aspect); width: min(100vw, calc(100vh * var(--aspect))); }
+.stage { position: relative; overflow: hidden; aspect-ratio: var(--aspect); width: min(100vw, calc(100vh * var(--aspect))); }
 .stage video, .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.stage .progress { position: absolute; left: 0; right: 0; top: 0; height: 6px; background: #fff3; }
+.stage .progress i { display: block; height: 100%; background: var(--pink); transition: width 0.25s linear; }
+.stage .progress span { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); font-size: 0.85rem; font-variant-numeric: tabular-nums; background: #000a; padding: 2px 8px; border-radius: 6px; }
+.stage .count b { animation: pop 0.4s; }
 .stage .count { position: absolute; inset: 0; display: grid; place-items: center; font-size: min(18vh, 12vw); font-weight: 800; background: #0008; }
 .board { list-style: none; margin: 0; padding: 10px; display: grid; gap: 6px; }
 .board li { display: flex; align-items: center; gap: 8px; background: #000a; padding: 6px 12px; border-radius: 10px; }
@@ -55,7 +61,10 @@ button.start { background: var(--pink); border-color: var(--pink); color: #fff; 
 .ratings b { font-size: 1.2rem; animation: pop 0.3s; }
 @keyframes pop { from { transform: scale(1.5); } }
 
-.results { max-width: 760px; margin: auto; padding: 24px; display: grid; gap: 16px; }
+.results { max-width: 760px; margin: auto; padding: 0 24px 24px; display: grid; gap: 16px; }
+.results nav { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 12px; padding: 12px 0; background: #0f0d1f; border-bottom: 1px solid var(--line); }
+.results nav span { flex: 1; text-align: center; font-weight: 600; }
+.results nav .primary { background: var(--pink); border-color: var(--pink); color: #fff; font-weight: 700; }
 .results .board { padding: 0; font-size: 1.2rem; }
 .results .board li { background: var(--panel); }
 .results section { background: var(--panel); border-left: 4px solid; border-radius: 12px; padding: 14px; display: grid; gap: 8px; }
