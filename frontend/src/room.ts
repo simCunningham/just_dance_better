@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 export type Phase = 'lobby' | 'play' | 'results'
 export type Player = { member: number; score: number; combo: number; last: number }
-export type State = { type: 'state'; phase: Phase; song: string; t: number; playing: boolean }
+export type State = { type: 'state'; phase: Phase; song: string; t: number; playing: boolean; count: number; round: number }
 
 const fresh = () => Math.random().toString(36).slice(2, 6).toUpperCase()
 

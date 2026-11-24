@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { getMoves, getSongs, videoUrl, type Moves, type Song } from './api'
-import Game from './Game'
+import { cropOf, getMoves, getSongs, videoUrl, type Moves, type Song } from './api'
+import Game, { type Clock } from './Game'
 import Lobby from './Lobby'
 import Results from './Results'
 import { DEVICE, newCode, useRoom, type Phase } from './room'
@@ -19,17 +19,19 @@ export default function App() {
   const [moves, setMoves] = useState<Moves>()
   const [busy, setBusy] = useState(false)
   const [tallies, setTallies] = useState<Tally[]>([])
-  const clock = useRef({ t: 0, playing: false, at: 0 })
+  const [round, setRound] = useState(0)
+  const clock = useRef<Clock>({ t: 0, playing: false, at: 0, count: 0 })
   const { others, send } = useRoom(code, state => {
     if (host) return
-    clock.current = { t: state.t, playing: state.playing, at: performance.now() }
+    clock.current = { t: state.t, playing: state.playing, at: performance.now(), count: state.count ?? 0 }
+    setRound(state.round ?? 0)
     if (state.song && state.song !== latest.current.songId) pickSong(state.song)
     setPhase(state.phase)
   })
   const song = songs?.find(s => s.id === songId)
   const ready = members.every(m => m >= 0)
-  const latest = useRef({ members, tallies, phase, host, songId })
-  latest.current = { members, tallies, phase, host, songId }
+  const latest = useRef({ members, tallies, phase, host, songId, round })
+  latest.current = { members, tallies, phase, host, songId, round }
 
   const pickSong = (id: string) => {
     setSongId(id)
@@ -49,10 +51,10 @@ export default function App() {
 
   useEffect(() => {
     const id = setInterval(() => {
-      const { members, tallies, phase, host, songId } = latest.current
+      const { members, tallies, phase, host, songId, round } = latest.current
       const players = members.map((member, i) => ({ member, score: 0, combo: 0, last: -1, ...(phase === 'lobby' ? {} : tallies[i]), marks: undefined })).filter(p => p.member >= 0)
       send({ type: 'players', device: DEVICE, players })
-      if (host) send({ type: 'state', phase, song: songId, t: clock.current.t, playing: clock.current.playing })
+      if (host) send({ type: 'state', phase, song: songId, t: clock.current.t, playing: clock.current.playing, count: clock.current.count, round })
     }, 500)
     return () => clearInterval(id)
   }, [send])
@@ -73,13 +75,28 @@ export default function App() {
   if (error) return <p className="notice">{error}</p>
   if (!songs) return <p className="notice">Loading…</p>
   if (!song) return <p className="notice">No songs are ready yet. Process a song in the backend and reload.</p>
+  const reset = () => {
+    clock.current = { t: 0, playing: false, at: 0, count: 0 }
+    setTallies([])
+  }
+  const restart = () => {
+    reset()
+    setRound(r => r + 1)
+    setPhase('play')
+  }
+  const home = () => {
+    reset()
+    if (!host) {
+      setCode(newCode())
+      setHost(true)
+    }
+    setPhase('lobby')
+  }
+
   if (phase === 'play' && moves)
-    return <Game key={song.id + moves.t.length + members.join()} video={videoUrl(song.id)} moves={moves} members={members} names={song.names} host={host} clock={clock} others={others} onTallies={setTallies} onEnd={() => setPhase('results')} />
+    return <Game key={`${song.id}:${moves.t.length}:${members.join()}:${round}`} video={videoUrl(song.id)} crop={cropOf(song)} moves={moves} members={members} names={song.names} host={host} clock={clock} others={others} onTallies={setTallies} onEnd={() => setPhase('results')} onRestart={restart} />
   if (phase === 'results')
-    return <Results song={song.id} names={song.names} members={moves ? members : []} tallies={tallies} others={others} host={host} onAgain={() => {
-      clock.current = { t: 0, playing: false, at: 0 }
-      setPhase('lobby')
-    }} />
+    return <Results key={round} song={song} names={song.names} members={moves ? members : []} tallies={tallies} others={others} host={host} onHome={home} onRestart={restart} />
   return (
     <Lobby song={song} songs={songs} onSong={pickSong} members={members} setMembers={setMembers} others={others} code={code} host={host} busy={busy} onStart={() => load().then(() => setPhase('play'))} onJoin={next => {
       setCode(next)

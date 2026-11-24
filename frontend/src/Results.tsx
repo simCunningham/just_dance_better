@@ -1,15 +1,15 @@
 import { useMemo } from 'react'
-import { COLORS } from './api'
+import { COLORS, type Song } from './api'
 import type { Player } from './room'
 import { RATINGS, type Tally } from './score'
 
-type Props = { song: string; names: string[]; members: number[]; tallies: Tally[]; others: Record<string, Player[]>; host: boolean; onAgain: () => void }
+type Props = { song: Song; names: string[]; members: number[]; tallies: Tally[]; others: Record<string, Player[]>; host: boolean; onHome: () => void; onRestart: () => void }
 
-export default function Results({ song, names, members, tallies, others, host, onAgain }: Props) {
+export default function Results({ song, names, members, tallies, others, host, onHome, onRestart }: Props) {
   const bests = useMemo(
     () =>
       members.map((member, i) => {
-        const key = `best:${song}:${member}`
+        const key = `best:${song.id}:${member}`
         const before = Number(localStorage[key] ?? 0)
         const score = tallies[i]?.score ?? 0
         if (score > before) localStorage[key] = score
@@ -24,6 +24,11 @@ export default function Results({ song, names, members, tallies, others, host, o
 
   return (
     <main className="results">
+      <nav>
+        <button onClick={onHome}>{host ? 'Home' : 'Leave room'}</button>
+        <span>{song.title}</span>
+        {host ? <button className="primary" onClick={onRestart}>Restart</button> : <small>Waiting for the host</small>}
+      </nav>
       <h1>Results</h1>
       <ol className="board">
         {board.map(row => (
@@ -53,7 +58,6 @@ export default function Results({ song, names, members, tallies, others, host, o
           </div>
         </section>
       ))}
-      {host ? <button className="start" onClick={onAgain}>Play again</button> : <p className="start">Waiting for the host</p>}
     </main>
   )
 }

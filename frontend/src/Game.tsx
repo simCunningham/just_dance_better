@@ -6,27 +6,34 @@ import { RATINGS, Scorer, frameAt, type Tally } from './score'
 
 type Props = {
   video: string
+  crop: number[]
   moves: Moves
   members: number[]
   names: string[]
   host: boolean
-  clock: RefObject<{ t: number; playing: boolean; at: number }>
+  clock: RefObject<Clock>
   others: Record<string, Player[]>
   onTallies: (tallies: Tally[]) => void
   onEnd: () => void
+  onRestart: () => void
 }
 
-export default function Game({ video: src, moves, members, names, host, clock, others, onTallies, onEnd }: Props) {
+export type Clock = { t: number; playing: boolean; at: number; count: number }
+
+export const COUNTDOWN = 5
+
+export default function Game({ video: src, crop, moves, members, names, host, clock, others, onTallies, onEnd, onRestart }: Props) {
   const video = useRef<HTMLVideoElement>(null)
   const overlay = useRef<HTMLCanvasElement>(null)
   const scorers = useMemo(() => members.map(member => new Scorer(moves, moves.dancers.indexOf(member))), [moves, members])
-  const [count, setCount] = useState(host ? 3 : 0)
+  const [count, setCount] = useState(host ? COUNTDOWN : 0)
   const [muted, setMuted] = useState(!host)
   const [paused, setPaused] = useState(true)
   const [tallies, setTallies] = useState(() => scorers.map(s => ({ ...s.tally })))
 
   useEffect(() => {
     if (!host) return
+    clock.current.count = count
     if (!count) {
       video.current?.play()
       return
@@ -67,7 +74,12 @@ export default function Game({ video: src, moves, members, names, host, clock, o
     const h = c.clientHeight * devicePixelRatio
     if (c.width !== w || c.height !== h) Object.assign(c, { width: w, height: h })
     const ctx = c.getContext('2d')!
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, w, h)
+    const [x0, y0, x1, y1] = crop
+    const fw = w / (x1 - x0)
+    const fh = h / (y1 - y0)
+    ctx.setTransform(1, 0, 0, 1, -x0 * fw, -y0 * fh)
     ctx.lineWidth = h / 150
     ctx.font = `600 ${h / 36}px system-ui`
     ctx.textAlign = 'center'
@@ -76,18 +88,23 @@ export default function Game({ video: src, moves, members, names, host, clock, o
       const k = moves.dancers.indexOf(member)
       const pose = moves.d[k][at]
       ctx.globalAlpha = moves.e[k][at] ? 0.3 : 0.85
-      drawPose(ctx, pose, w, h, COLORS[i], moves.min_visibility)
+      drawPose(ctx, pose, fw, fh, COLORS[i], moves.min_visibility)
       ctx.fillStyle = COLORS[i]
-      ctx.fillText(names[member], pose[0][0] * w, pose[0][1] * h - h / 22)
+      ctx.fillText(names[member], pose[0][0] * fw, pose[0][1] * fh - h / 22)
     })
   }
 
   const toggle = () => {
     const v = video.current!
-    if (v.paused) v.play()
-    else v.pause()
-    setPaused(v.paused)
+    if (v.paused) setCount(COUNTDOWN)
+    else {
+      v.pause()
+      setPaused(true)
+    }
   }
+
+  const shown = host ? count : clock.current.count
+  const [x0, y0, x1, y1] = crop
 
   const board = [
     ...members.map((member, i) => ({ member, color: COLORS[i], ...tallies[i] })),
@@ -96,10 +113,10 @@ export default function Game({ video: src, moves, members, names, host, clock, o
 
   return (
     <main className="game">
-      <div className="stage" style={{ '--aspect': moves.aspect } as React.CSSProperties}>
-        <video ref={video} src={src} muted={muted} playsInline preload="auto" onEnded={() => host && onEnd()} />
+      <div className="stage" style={{ '--aspect': (moves.aspect * (x1 - x0)) / (y1 - y0) } as React.CSSProperties}>
+        <video ref={video} src={src} style={{ left: `${(-x0 / (x1 - x0)) * 100}%`, top: `${(-y0 / (y1 - y0)) * 100}%`, width: `${100 / (x1 - x0)}%`, height: `${100 / (y1 - y0)}%` }} muted={muted} playsInline preload="auto" onEnded={() => host && onEnd()} />
         <canvas ref={overlay} />
-        {(count > 0 || paused) && <div className="count">{count || (video.current?.currentTime ? 'Paused' : 'Get ready')}</div>}
+        {(shown > 0 || paused) && <div className="count">{shown > 0 ? <b key={shown}>{shown}</b> : video.current?.currentTime ? 'Paused' : 'Get ready'}</div>}
       </div>
       <ol className="board">
         {board.map(row => (
@@ -124,6 +141,7 @@ export default function Game({ video: src, moves, members, names, host, clock, o
         {host ? (
           <div className="controls">
             <button disabled={count > 0} onClick={toggle}>{paused ? 'Resume' : 'Pause'}</button>
+            <button disabled={count > 0} onClick={onRestart}>Restart</button>
             <button onClick={onEnd}>End song</button>
           </div>
         ) : (

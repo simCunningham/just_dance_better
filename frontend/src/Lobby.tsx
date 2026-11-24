@@ -1,6 +1,6 @@
 import QRCode from 'qrcode'
 import { useEffect, useState } from 'react'
-import { COLORS, joinUrl, videoUrl, type Song } from './api'
+import { COLORS, cropOf, joinUrl, videoUrl, type Song } from './api'
 import CamView from './CamView'
 import { fullBody } from './pose'
 import type { Player } from './room'
@@ -29,6 +29,9 @@ export default function Lobby({ song, songs, onSong, members, setMembers, others
   const room = Math.min(4, 9 - taken.length)
   const ready = members.every(m => m >= 0)
   const url = joinUrl(code)
+  const [cx0, cy0, cx1, cy1] = cropOf(song)
+  const [w, h] = [size[0] * (cx1 - cx0), size[1] * (cy1 - cy0)]
+  const [ox, oy] = [size[0] * cx0, size[1] * cy0]
 
   useEffect(() => {
     QRCode.toDataURL(url, { margin: 1, width: 240 }).then(setQr)
@@ -83,12 +86,12 @@ export default function Lobby({ song, songs, onSong, members, setMembers, others
           </div>
         </div>
         {song.members && (
-          <div className="frame" style={{ aspectRatio: `${size[0]} / ${size[1]}` }}>
-            <video key={song.id} src={`${videoUrl(song.id)}#t=${song.members.t}`} muted playsInline preload="metadata" onLoadedMetadata={e => setSize([e.currentTarget.videoWidth, e.currentTarget.videoHeight])} />
+          <div className="frame" style={{ aspectRatio: `${w} / ${h}` }}>
+            <video key={song.id} style={{ position: 'absolute', left: `${(-ox / w) * 100}%`, top: `${(-oy / h) * 100}%`, width: `${(size[0] / w) * 100}%`, height: `${(size[1] / h) * 100}%` }} src={`${videoUrl(song.id)}#t=${song.members.t}`} muted playsInline preload="metadata" onLoadedMetadata={e => setSize([e.currentTarget.videoWidth, e.currentTarget.videoHeight])} />
             {song.members.boxes.map(([x0, y0, x1, y1], i) => {
               const { text, ...rest } = label(song.names.indexOf(song.members!.names[i]))
               return (
-                <button key={i} {...rest} onClick={() => pick(song.names.indexOf(song.members!.names[i]))} style={{ ...rest.style, left: `${(x0 / size[0]) * 100}%`, top: `${(y0 / size[1]) * 100}%`, width: `${((x1 - x0) / size[0]) * 100}%`, height: `${((y1 - y0) / size[1]) * 100}%` }}>
+                <button key={i} {...rest} onClick={() => pick(song.names.indexOf(song.members!.names[i]))} style={{ ...rest.style, left: `${((x0 - ox) / w) * 100}%`, top: `${((y0 - oy) / h) * 100}%`, width: `${((x1 - x0) / w) * 100}%`, height: `${((y1 - y0) / h) * 100}%` }}>
                   <span>{text}</span>
                 </button>
               )
